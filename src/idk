@@ -1,0 +1,152 @@
+// Vlastní výjimka
+class NeplatnyPocetProdejuException extends Exception {
+    public NeplatnyPocetProdejuException(String message) {
+        super(message);
+    }
+}
+
+// Třída Zakaznik
+class Zakaznik {
+    private String jmeno;
+    private LocalDate datumNarozeni;
+    private String mesto;
+    private int pocetProdeju;
+
+    // Konstruktor
+    public Zakaznik(String jmeno, LocalDate datumNarozeni, String mesto, int pocetProdeju) {
+        this.jmeno = jmeno;
+        this.datumNarozeni = datumNarozeni;
+        this.mesto = mesto;
+        this.pocetProdeju = pocetProdeju;
+    }
+
+    // Přístupové metody
+    public String getJmeno() {
+        return jmeno;
+    }
+
+    public LocalDate getDatumNarozeni() {
+        return datumNarozeni;
+    }
+
+    public String getMesto() {
+        return mesto;
+    }
+
+    public int getPocetProdeju() {
+        return pocetProdeju;
+    }
+
+    public void setPocetProdeju(int pocetProdeju) {
+        this.pocetProdeju = pocetProdeju;
+    }
+
+    // Zvýšení počtu prodejů
+    public void zvysPocetProdeju(int pocet) throws NeplatnyPocetProdejuException {
+        if (pocet <= 0) {
+            throw new NeplatnyPocetProdejuException("Počet prodejů musí být kladné číslo.");
+        }
+        this.pocetProdeju += pocet;
+    }
+
+    @Override
+    public String toString() {
+        return jmeno + ":" + datumNarozeni + ":" + mesto + ":" + pocetProdeju;
+    }
+
+    // Metoda pro vytvoření instance z řetězce
+    public static Zakaznik fromString(String data) {
+        String[] parts = data.split(":");
+        return new Zakaznik(parts[0], LocalDate.parse(parts[1]), parts[2], Integer.parseInt(parts[3]));
+    }
+}
+
+// Třída Evidence
+class EvidenceZakazniku {
+    private List<Zakaznik> zakaznici;
+
+    public EvidenceZakazniku() {
+        this.zakaznici = new ArrayList<>();
+    }
+
+    // Přidání zákazníka
+    public void pridatZakaznika(Zakaznik zakaznik) {
+        zakaznici.add(zakaznik);
+    }
+
+    // Odebrání posledního zákazníka
+    public void odebratPoslednihoZakaznika() {
+        if (!zakaznici.isEmpty()) {
+            zakaznici.remove(zakaznici.size() - 1);
+        }
+    }
+
+    // Uložení do souboru
+    public void ulozitDoSouboru(String soubor) {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(soubor))) {
+            for (Zakaznik zakaznik : zakaznici) {
+                writer.write(zakaznik.toString());
+                writer.newLine();
+            }
+        } catch (IOException e) {
+            System.err.println("Chyba při zápisu do souboru: " + e.getMessage());
+        }
+    }
+
+    // Načtení ze souboru
+    public void nacistZeSouboru(String soubor) {
+        try (BufferedReader reader = new BufferedReader(new FileReader(soubor))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                zakaznici.add(Zakaznik.fromString(line));
+            }
+        } catch (IOException e) {
+            System.err.println("Chyba při čtení souboru: " + e.getMessage());
+        }
+    }
+
+    // Výběr zákazníků podle limitu prodejů
+    public List<Zakaznik> vybratZakazniky(int limit) {
+        return zakaznici.stream()
+                .filter(z -> z.getPocetProdeju() > limit)
+                .collect(Collectors.toList());
+    }
+
+    // Výpočet průměrného počtu prodejů pro město
+    public double spocitatPrumernyPocetProdeju(String mesto) {
+        return zakaznici.stream()
+                .filter(z -> z.getMesto().equalsIgnoreCase(mesto))
+                .mapToInt(Zakaznik::getPocetProdeju)
+                .average()
+                .orElse(0);
+    }
+}
+
+// Hlavní třída
+public class Main {
+    public static void main(String[] args) {
+        EvidenceZakazniku evidence = new EvidenceZakazniku();
+
+        // Přidání zákazníků
+        evidence.pridatZakaznika(new Zakaznik("Karel Dvořák", LocalDate.of(2005, 12, 31), "Uherské Hradiště", 45));
+        evidence.pridatZakaznika(new Zakaznik("Jana Nováková", LocalDate.of(1990, 5, 15), "Praha", 30));
+
+        // Odebrání posledního zákazníka
+        evidence.odebratPoslednihoZakaznika();
+
+        // Uložení do souboru
+        evidence.ulozitDoSouboru("zakaznici.txt");
+
+        // Načtení ze souboru
+        evidence.nacistZeSouboru("zakaznici.txt");
+
+        // Výběr zákazníků s více než 40 prodeji
+        List<Zakaznik> vybrani = evidence.vybratZakazniky(40);
+        System.out.println("Zákazníci s více než 40 prodeji:");
+        vybrani.forEach(System.out::println);
+
+        // Výpočet průměrného počtu prodejů pro Uherské Hradiště
+        double prumer = evidence.spocitatPrumernyPocetProdeju("Uherské Hradiště");
+        System.out.println("Průměrný počet prodejů v Uherském Hradišti: " + prumer);
+    }
+}
